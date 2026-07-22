@@ -1,0 +1,35 @@
+# Java / Maven
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+*.iml
+.idea/
+*.iws
+*.ipr
+
+# Node
+**/node_modules/
+**/dist/
+**/.vite/
+*.log
+npm-debug.log*
+
+# Env & local
+.env
+.env.local
+apps/api/uploads/
+apps/api/data/
+apps/api/*.db
+*.db
+*.mv.db
+*.trace.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.cursor/

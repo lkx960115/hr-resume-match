@@ -1,0 +1,15 @@
+姓名：赵六
+学历：本科（信息管理）
+工作年限：6年
+职位：技术经理 / 全栈
+
+技能：Java、Spring Boot、React、TypeScript、MySQL、Redis、Kubernetes、Kafka、Flink、Elasticsearch、
+Prometheus、Grafana、Terraform、Go、Rust、区块链、人工智能、大数据、算法竞赛（了解）
+
+工作经历：
+某集团数字化中心｜技术经理｜2020-01 至今
+- 带队 12 人，负责多个业务线中台
+- 主导微服务治理与容器化落地
+- 对外宣称精通所有主流中间件与多语言
+
+亮点描述较多，量化指标较少。履历跨度大，技术栈覆盖极广。
