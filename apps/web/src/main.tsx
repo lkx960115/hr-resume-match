@@ -11,9 +11,17 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       locale={zhCN}
       theme={{
         token: {
-          colorPrimary: '#1f4b7a',
-          borderRadius: 6,
-          fontFamily: '"IBM Plex Sans", "Source Han Sans SC", "PingFang SC", sans-serif',
+          colorPrimary: '#2b5aed',
+          borderRadius: 8,
+          fontFamily: '"Inter", "IBM Plex Sans", "Source Han Sans SC", "PingFang SC", system-ui, sans-serif',
+          colorText: '#1e293b',
+          colorTextSecondary: '#64748b',
+          colorBorder: '#e2e8f0',
+        },
+        components: {
+          Card: {
+            headerHeight: 52,
+          },
         },
       }}
     >

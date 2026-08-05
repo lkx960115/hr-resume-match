@@ -143,21 +143,38 @@ export async function fetchCandidate(id: number) {
   return data
 }
 
+/** PRD R5: 展开候选人明文（记操作日志） */
+export async function revealCandidate(id: number) {
+  const { data } = await api.get<Candidate>(`/candidates/${id}/reveal`)
+  return data
+}
+
 export async function fetchInterviewPack(candidateId: number) {
   const { data } = await api.get<MatchReport>(`/candidates/${candidateId}/interview-pack`)
   return data
 }
 
 export async function seedDemo() {
-  const { data } = await api.post<{ jobId: number; candidateCount: number; message: string }>(
-    '/demo/seed',
-    null,
-    { timeout: 600000 },
-  )
+  const { data } = await api.post<{
+    jobId: number
+    jobIds: number[]
+    candidateCount: number
+    status: string
+    message: string
+  }>('/demo/seed', null, { timeout: 30000 })
   return data
 }
 
 export async function fetchLlmStatus() {
   const { data } = await api.get<{ mode: string; provider: string; hasApiKey: boolean; model: string }>('/llm/status')
+  return data
+}
+
+/** PRD R9: 切换 LLM 模式 */
+export async function setLlmMode(mode: string) {
+  const { data } = await api.post<{ mode: string; provider: string; hasApiKey: boolean; model: string }>(
+    '/llm/mode',
+    { mode },
+  )
   return data
 }

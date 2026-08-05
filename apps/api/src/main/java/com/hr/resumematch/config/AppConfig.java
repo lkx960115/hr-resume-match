@@ -36,8 +36,9 @@ public class AppConfig implements WebMvcConfigurer {
     @Bean(name = "taskExecutor")
     public Executor taskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(2);
-        executor.setMaxPoolSize(4);
+        // mock 模式可并发跑 CPU 规则；OpenAI 模式由调用方限制并发，避免 API 限流。
+        executor.setCorePoolSize(8);
+        executor.setMaxPoolSize(16);
         executor.setQueueCapacity(100);
         executor.setThreadNamePrefix("match-");
         executor.initialize();

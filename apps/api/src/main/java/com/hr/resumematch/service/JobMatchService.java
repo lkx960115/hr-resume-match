@@ -17,6 +17,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -32,6 +34,7 @@ public class JobMatchService {
     private final MatchPipelineService matchPipelineService;
     private final LlmRouter llmRouter;
     private final TransactionTemplate tx;
+    private final Executor taskExecutor;
 
     public JobMatchService(
             JobRepository jobRepository,
@@ -40,7 +43,8 @@ public class JobMatchService {
             ResumeParseService resumeParseService,
             MatchPipelineService matchPipelineService,
             LlmRouter llmRouter,
-            PlatformTransactionManager transactionManager
+            PlatformTransactionManager transactionManager,
+            Executor taskExecutor
     ) {
         this.jobRepository = jobRepository;
         this.candidateRepository = candidateRepository;
@@ -49,6 +53,7 @@ public class JobMatchService {
         this.matchPipelineService = matchPipelineService;
         this.llmRouter = llmRouter;
         this.tx = new TransactionTemplate(transactionManager);
+        this.taskExecutor = taskExecutor;
     }
 
     @Transactional
@@ -79,6 +84,10 @@ public class JobMatchService {
         for (MultipartFile file : files) {
             if (file == null || file.isEmpty()) continue;
             String fileName = file.getOriginalFilename();
+            if (!resumeParseService.isSupported(fileName)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "不支持的文件格式：" + fileName + "，请上传 " + resumeParseService.supportFormats());
+            }
             long start = System.currentTimeMillis();
             try {
                 log.info("上传解析开始: jobId={}, file={}, size={}", jobId, fileName, file.getSize());
@@ -142,15 +151,19 @@ public class JobMatchService {
                     jobId, candidates.size(), ids.size());
             return ids;
         });
-        int i = 0;
-        for (Long reportId : reportIds) {
-            i++;
-            long start = System.currentTimeMillis();
-            log.info("匹配执行中: jobId={}, reportId={}, progress={}/{}", jobId, reportId, i, reportIds.size());
-            matchPipelineService.matchOne(reportId, jobId);
-            log.info("匹配单人完成: jobId={}, reportId={}, costMs={}",
-                    jobId, reportId, System.currentTimeMillis() - start);
-        }
+        // 并发匹配该岗位下的所有候选人；单个失败不影响整体。
+        List<CompletableFuture<Void>> futures = reportIds.stream()
+                .map(reportId -> CompletableFuture.runAsync(
+                        () -> {
+                            long start = System.currentTimeMillis();
+                            log.info("匹配执行中: jobId={}, reportId={}", jobId, reportId);
+                            matchPipelineService.matchOne(reportId, jobId);
+                            log.info("匹配单人完成: jobId={}, reportId={}, costMs={}",
+                                    jobId, reportId, System.currentTimeMillis() - start);
+                        }, taskExecutor))
+                .toList();
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
         return listMatches(jobId);
     }
 
