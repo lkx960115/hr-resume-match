@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.hwpf.HWPFDocument;
+import org.apache.poi.hwpf.extractor.WordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.springframework.stereotype.Service;
@@ -56,8 +58,24 @@ public class ResumeParseService {
                 return doc.getParagraphs().stream().map(XWPFParagraph::getText).collect(Collectors.joining("\n"));
             }
         }
+        if (lower.endsWith(".doc")) {
+            try (InputStream in = Files.newInputStream(path); HWPFDocument doc = new HWPFDocument(in)) {
+                return new WordExtractor(doc).getText();
+            }
+        }
         // txt / md / 其他按文本读
         return Files.readString(path, StandardCharsets.UTF_8);
+    }
+
+    public boolean isSupported(String fileName) {
+        if (fileName == null) return false;
+        String lower = fileName.toLowerCase(Locale.ROOT);
+        return lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".doc")
+                || lower.endsWith(".txt") || lower.endsWith(".md");
+    }
+
+    public String supportFormats() {
+        return "PDF、DOCX、DOC、TXT、MD";
     }
 
     public record StoredFile(String originalName, String storedPath) {}

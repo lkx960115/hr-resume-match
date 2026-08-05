@@ -3,6 +3,8 @@ package com.hr.resumematch.web;
 import com.hr.resumematch.dto.ApiDtos.*;
 import com.hr.resumematch.service.DemoSeedService;
 import com.hr.resumematch.service.JobMatchService;
+import com.hr.resumematch.util.PrivacyUtil;
+import com.hr.resumematch.config.AppProperties;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,7 @@ public class ApiController {
 
     private final JobMatchService jobMatchService;
     private final DemoSeedService demoSeedService;
+    private final AppProperties appProperties;
 
     @GetMapping("/health")
     public Map<String, String> health() {
@@ -34,6 +37,14 @@ public class ApiController {
         log.info("查询 LLM 状态: provider={}, model={}, hasApiKey={}",
                 status.getProvider(), status.getModel(), status.isHasApiKey());
         return status;
+    }
+
+    @PostMapping("/llm/mode")
+    public LlmStatusResponse setLlmMode(@RequestBody Map<String, String> body) {
+        String mode = body.getOrDefault("mode", "auto");
+        appProperties.getLlm().setMode(mode);
+        log.info("LLM 模式切换: mode={}", mode);
+        return jobMatchService.llmStatus();
     }
 
     @GetMapping("/jobs")
@@ -76,6 +87,8 @@ public class ApiController {
     public List<CandidateResponse> listResumes(@PathVariable Long id) {
         List<CandidateResponse> list = jobMatchService.listCandidates(id);
         log.info("查询简历列表: jobId={}, count={}", id, list.size());
+        // PRD R5: 脱敏
+        list.forEach(this::maskCandidate);
         return list;
     }
 
@@ -99,6 +112,18 @@ public class ApiController {
     @GetMapping("/candidates/{id}")
     public CandidateResponse candidate(@PathVariable Long id) {
         log.info("查询候选人: id={}", id);
+        CandidateResponse c = jobMatchService.getCandidate(id);
+        // PRD R5: 默认脱敏手机号/邮箱/身份证号
+        maskCandidate(c);
+        return c;
+    }
+
+    /**
+     * PRD R5: HRBP 展开明文，记操作日志。
+     */
+    @GetMapping("/candidates/{id}/reveal")
+    public CandidateResponse revealCandidate(@PathVariable Long id) {
+        log.warn("【脱敏展开】候选人明文查阅: candidateId={}, 操作时间={}", id, java.time.Instant.now());
         return jobMatchService.getCandidate(id);
     }
 
@@ -113,8 +138,36 @@ public class ApiController {
         long start = System.currentTimeMillis();
         log.info("加载样例数据开始");
         SeedResponse resp = demoSeedService.seed();
-        log.info("加载样例数据完成: jobId={}, candidateCount={}, costMs={}, message={}",
-                resp.getJobId(), resp.getCandidateCount(), System.currentTimeMillis() - start, resp.getMessage());
+        log.info("加载样例数据已提交: jobId={}, candidateCount={}, status={}, costMs={}",
+                resp.getJobId(), resp.getCandidateCount(), resp.getStatus(), System.currentTimeMillis() - start);
         return resp;
+    }
+
+    /**
+     * PRD R5: 对候选人信息中的敏感字段进行脱敏。
+     */
+    private void maskCandidate(CandidateResponse c) {
+        if (c == null || c.getProfile() == null) return;
+        CandidateProfile p = c.getProfile();
+        p.setName(maskName(p.getName()));
+        if (p.getSummary() != null) p.setSummary(PrivacyUtil.maskSensitive(p.getSummary()));
+        if (p.getHighlights() != null) {
+            p.setHighlights(p.getHighlights().stream()
+                    .map(PrivacyUtil::maskSensitive)
+                    .toList());
+        }
+        if (p.getExperiences() != null) {
+            p.getExperiences().forEach(e -> {
+                if (e.getDescription() != null) e.setDescription(PrivacyUtil.maskSensitive(e.getDescription()));
+                if (e.getTitle() != null) e.setTitle(PrivacyUtil.maskSensitive(e.getTitle()));
+                if (e.getCompany() != null) e.setCompany(PrivacyUtil.maskSensitive(e.getCompany()));
+            });
+        }
+    }
+
+    /** 姓名脱敏：张三 → 张* */
+    private static String maskName(String name) {
+        if (name == null || name.length() <= 1) return name;
+        return name.charAt(0) + "*" + (name.length() > 2 ? "*" : "");
     }
 }

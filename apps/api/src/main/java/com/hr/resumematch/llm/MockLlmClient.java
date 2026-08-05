@@ -86,28 +86,60 @@ public class MockLlmClient implements LlmClient {
             DimensionScore ds = new DimensionScore();
             ds.setName(name);
             ds.setWeight(weight);
-            int hit = 0;
-            List<String> evidenceBits = new ArrayList<>();
-            for (String skill : Optional.ofNullable(profile.getSkills()).orElse(List.of())) {
-                if (name.contains(skill) || skill.contains(name) || text.contains(skill)) {
-                    hit++;
-                    evidenceBits.add(skill);
+
+            // 「项目影响力」维度：基于项目规模、角色、量化成果评估（PRD Q3 决议）
+            if (name.contains("项目影响力")) {
+                int projScore = 50;
+                List<String> projEvidences = new ArrayList<>();
+                // 项目规模信号
+                if (containsAny(text, "万", "亿", "QPS", "日均", "DAU", "MAU", "PV", "UV", "并发")) {
+                    projScore += 10;
+                    projEvidences.add("有项目规模指标");
                 }
-            }
-            // 关键词命中
-            String[] tokens = name.split("[/、\\s]+");
-            for (String t : tokens) {
-                if (t.length() >= 2 && text.toLowerCase().contains(t.toLowerCase())) {
-                    hit++;
-                    evidenceBits.add(t);
+                // 角色信号
+                if (containsAny(text, "主导", "负责", "owner", "从0到1", "核心", "技术负责人")) {
+                    projScore += 15;
+                    projEvidences.add("体现核心技术角色");
                 }
+                // 量化成果
+                if (matchesAny(text, "(提升|降低|减少|缩短|增长|优化|节省).*[0-9]+%", "(\\d+倍)")) {
+                    projScore += 12;
+                    projEvidences.add("有量化成果数据");
+                }
+                // 团队规模
+                if (containsAny(text, "带领", "管理", "团队")) {
+                    projScore += 8;
+                    projEvidences.add("涉及团队管理");
+                }
+                projScore = Math.min(95, projScore + Math.min(10, (profile.getYearsOfExperience() == null ? 0 : profile.getYearsOfExperience())));
+                ds.setScore((double) projScore);
+                ds.setWeightedScore(Math.round(projScore * weight * 100.0) / 100.0);
+                ds.setEvidence(projEvidences.isEmpty() ? "（Mock）简历中项目规模/角色/量化成果表述有限，建议面试深挖" : String.join("；", projEvidences));
+                ds.setGap(projScore >= 70 ? "暂无明显缺口" : "项目影响力证据不足，需追问项目细节与个人贡献");
+                ds.setConfidence(Math.min(0.9, 0.5 + projEvidences.size() * 0.1));
+            } else {
+                int hit = 0;
+                List<String> evidenceBits = new ArrayList<>();
+                for (String skill : Optional.ofNullable(profile.getSkills()).orElse(List.of())) {
+                    if (name.contains(skill) || skill.contains(name) || text.contains(skill)) {
+                        hit++;
+                        evidenceBits.add(skill);
+                    }
+                }
+                String[] tokens = name.split("[/、\\s]+");
+                for (String t : tokens) {
+                    if (t.length() >= 2 && text.toLowerCase().contains(t.toLowerCase())) {
+                        hit++;
+                        evidenceBits.add(t);
+                    }
+                }
+                double score = Math.min(95, 45 + hit * 12 + (profile.getYearsOfExperience() == null ? 0 : Math.min(20, profile.getYearsOfExperience() * 2)));
+                ds.setScore(score);
+                ds.setWeightedScore(Math.round(score * weight * 100.0) / 100.0);
+                ds.setEvidence(evidenceBits.isEmpty() ? "（Mock）简历中相关表述有限，建议面试深挖" : "命中：" + String.join("、", evidenceBits.stream().distinct().limit(5).toList()));
+                ds.setGap(score >= 70 ? "暂无明显缺口" : "证据不足，需追问项目细节");
+                ds.setConfidence(0.55 + Math.min(0.35, hit * 0.05));
             }
-            double score = Math.min(95, 45 + hit * 12 + (profile.getYearsOfExperience() == null ? 0 : Math.min(20, profile.getYearsOfExperience() * 2)));
-            ds.setScore(score);
-            ds.setWeightedScore(Math.round(score * weight * 100.0) / 100.0);
-            ds.setEvidence(evidenceBits.isEmpty() ? "（Mock）简历中相关表述有限，建议面试深挖" : "命中：" + String.join("、", evidenceBits.stream().distinct().limit(5).toList()));
-            ds.setGap(score >= 70 ? "暂无明显缺口" : "证据不足，需追问项目细节");
-            ds.setConfidence(0.55 + Math.min(0.35, hit * 0.05));
             scores.add(ds);
         }
         detail.setDimensions(scores);
@@ -211,6 +243,23 @@ public class MockLlmClient implements LlmClient {
 
     private static String str(Object o) {
         return o == null ? "" : String.valueOf(o);
+    }
+
+    private static boolean containsAny(String text, String... keywords) {
+        if (text == null) return false;
+        String lower = text.toLowerCase();
+        for (String kw : keywords) {
+            if (lower.contains(kw.toLowerCase())) return true;
+        }
+        return false;
+    }
+
+    private static boolean matchesAny(String text, String... regexes) {
+        if (text == null) return false;
+        for (String regex : regexes) {
+            if (Pattern.compile(regex).matcher(text).find()) return true;
+        }
+        return false;
     }
 
     private static String truncate(String s, int n) {

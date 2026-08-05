@@ -153,8 +153,10 @@ public final class ApiDtos {
 
     @Data
     public static class SeedResponse {
-        private Long jobId;
+        private Long jobId; // 兼容旧前端：首个岗位 id
+        private List<Long> jobIds;
         private int candidateCount;
+        private String status; // RUNNING / COMPLETED / FAILED
         private String message;
     }
 }
