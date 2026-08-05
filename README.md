@@ -1,6 +1,6 @@
 # hr-resume-match
 
-简历匹配与结构化面试助手 Demo（React + Spring Boot + OpenAI 兼容网关）。
+简历匹配与结构化面试助手 Demo（Vue 3 + Spring Boot + OpenAI 兼容网关）。
 
 产品需求文档：[docs/PRD.md](docs/PRD.md)
 
@@ -16,7 +16,7 @@
 
 | 层 | 选型 |
 |---|---|
-| 前端 | React + Vite + TypeScript + Ant Design |
+| 前端 | Vue 3 + Vite + TypeScript + Element Plus |
 | 后端 | Java 17 + Spring Boot 3 + Maven |
 | 数据库 | H2（文件模式，本地可持久） |
 | 解析 | PDFBox + Apache POI |
@@ -90,7 +90,7 @@ npm run dev
 ```
 hr-resume-match/
 ├── apps/api/          # Spring Boot 后端
-├── apps/web/          # React 前端
+├── apps/web/          # Vue 3 前端
 ├── sample-data/       # 样例简历与岗位
 ├── docs/PRD.md        # 产品需求文档
 ├── .env.example       # 环境变量模板

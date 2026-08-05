@@ -135,7 +135,7 @@
 
 | 层 | 选型 |
 |----|------|
-| 前端 | React + Vite + TypeScript + Ant Design |
+| 前端 | Vue 3 + Vite + TypeScript + Element Plus |
 | 后端 | Java 17 + Spring Boot 3 + Maven |
 | 数据库 | H2（文件模式，可切 PostgreSQL） |
 | 简历解析 | Apache PDFBox + Apache POI |
@@ -153,7 +153,7 @@
 ```
 hr-resume-match/
 ├── apps/api/          # Spring Boot 后端
-├── apps/web/          # React 前端
+├── apps/web/          # Vue 3 前端
 ├── sample-data/       # 样例简历
 ├── docs/PRD.md        # 本文档
 └── README.md          # 启动说明
@@ -165,7 +165,7 @@ hr-resume-match/
 
 | 层 | 组件 | 职责 |
 |----|------|------|
-| Web | Vite React App | 岗位、上传、榜单、详情、面试包 |
+| Web | Vite Vue 3 App | 岗位、上传、榜单、详情、面试包 |
 | API | Spring Boot | REST：jobs / resumes / matches / interview-packs |
 | 领域服务 | Parse / Match / Interview | 抽取 → 结构化 → 打分 → 出题 |
 | 存储 | H2 + 本地 uploads/ | 元数据、结构化 JSON、原始文件 |

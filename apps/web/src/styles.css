@@ -2,6 +2,7 @@
   color: #1a2332;
   background: #eef2f6;
   font-family: "IBM Plex Sans", "Source Han Sans SC", "PingFang SC", sans-serif;
+  --el-color-primary: #1f4b7a;
 }
 
 * {
@@ -17,7 +18,7 @@ body {
     #eef2f6;
 }
 
-#root {
+#app {
   min-height: 100vh;
 }
 
