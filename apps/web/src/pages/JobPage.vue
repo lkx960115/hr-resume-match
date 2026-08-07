@@ -108,6 +108,10 @@ function isInvited(row: MatchReport) {
   return !!row.invited
 }
 
+function hasEvaluationSaved(row: MatchReport) {
+  return !!row.interviewEvaluation?.locked
+}
+
 function onSelectionChange(rows: MatchReport[]) {
   selectedRows.value = rows
 }
@@ -387,7 +391,7 @@ function onBatchInvite() {
                 type="primary"
                 @click="router.push(`/candidates/${row.candidateId}/interview`)"
               >
-                面试详情
+                {{ hasEvaluationSaved(row) ? '面试详情' : '填写面试评价' }}
               </el-button>
               <el-button
                 v-if="row.passHardGate && !isInvited(row)"

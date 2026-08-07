@@ -282,42 +282,9 @@ const displayName = computed(
         </div>
       </section>
 
-      <!-- 3. 推荐面试题 -->
+      <!-- 3. 面试官综合评分 -->
       <section class="sheet-section">
-        <h2 class="section-title">三、推荐面试题</h2>
-        <p v-if="report?.interviewPack?.opening" class="pack-opening">
-          {{ report.interviewPack.opening }}
-        </p>
-        <div v-if="report?.interviewPack?.questions?.length" class="question-list">
-          <div
-            v-for="(q, idx) in report.interviewPack.questions"
-            :key="`${q.category}-${idx}`"
-            class="question-item"
-          >
-            <div class="question-head">
-              <span class="q-num">{{ idx + 1 }}</span>
-              <span class="q-cat">{{ q.category }}</span>
-            </div>
-            <p class="q-text">{{ q.question }}</p>
-            <p v-if="q.intent" class="q-meta"><strong>考察意图：</strong>{{ q.intent }}</p>
-            <p v-if="q.relatedRisk" class="q-meta"><strong>关联风险：</strong>{{ q.relatedRisk }}</p>
-            <div class="answer-space">
-              <span class="answer-label">面试记录 / 作答要点</span>
-            </div>
-          </div>
-        </div>
-        <p v-else class="empty-hint">暂无推荐面试题，请先完成匹配生成面试包。</p>
-        <div v-if="report?.interviewPack?.closingTips?.length" class="closing-tips">
-          <h3 class="sub-title">收尾提示</h3>
-          <ul class="plain-list">
-            <li v-for="t in report.interviewPack.closingTips" :key="t">{{ t }}</li>
-          </ul>
-        </div>
-      </section>
-
-      <!-- 4. 面试官综合评分 -->
-      <section class="sheet-section">
-        <h2 class="section-title">四、面试官综合评分</h2>
+        <h2 class="section-title">三、面试官综合评分</h2>
         <p class="section-hint no-print">请按维度打分（0–100），系统按权重汇总；保存后将锁定不可修改。</p>
         <table class="score-table">
           <thead>
@@ -394,9 +361,9 @@ const displayName = computed(
         </div>
       </section>
 
-      <!-- 5. 面试官签字：仅打印呈现 -->
+      <!-- 4. 面试官签字：仅打印呈现 -->
       <section class="sheet-section signature-section print-only-block">
-        <h2 class="section-title">五、面试官签字</h2>
+        <h2 class="section-title">四、面试官签字</h2>
         <div class="signature-grid">
           <div class="sig-field full">
             <span class="info-label">签字确认</span>
