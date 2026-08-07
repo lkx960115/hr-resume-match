@@ -109,6 +109,15 @@ public class ApiController {
         return list;
     }
 
+    @PostMapping("/jobs/{id}/invites")
+    public List<MatchResponse> invite(@PathVariable Long id, @Valid @RequestBody InviteRequest req) {
+        log.info("面试邀约: jobId={}, candidateIds={}", id, req.getCandidateIds());
+        List<MatchResponse> list = jobMatchService.inviteCandidates(id, req.getCandidateIds());
+        long invitedCount = list.stream().filter(MatchResponse::isInvited).count();
+        log.info("面试邀约完成: jobId={}, invitedCount={}", id, invitedCount);
+        return list;
+    }
+
     @GetMapping("/candidates/{id}")
     public CandidateResponse candidate(@PathVariable Long id) {
         log.info("查询候选人: id={}", id);
@@ -131,6 +140,18 @@ public class ApiController {
     public MatchResponse interviewPack(@PathVariable Long id) {
         log.info("查询面试包: candidateId={}", id);
         return jobMatchService.getMatchForCandidate(id);
+    }
+
+    @PostMapping("/candidates/{id}/interview-evaluation")
+    public MatchResponse saveInterviewEvaluation(
+            @PathVariable Long id,
+            @RequestBody InterviewEvaluationRequest req
+    ) {
+        log.info("保存面试评价: candidateId={}", id);
+        MatchResponse result = jobMatchService.saveInterviewEvaluation(id, req);
+        log.info("面试评价已锁定: candidateId={}, locked={}",
+                id, result.getInterviewEvaluation() != null && result.getInterviewEvaluation().isLocked());
+        return result;
     }
 
     @PostMapping("/demo/seed")

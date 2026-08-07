@@ -80,6 +80,23 @@ export type InterviewQuestion = {
   relatedRisk?: string
 }
 
+export type InterviewEvaluationScore = {
+  name: string
+  weight: number
+  score?: number | null
+  comment?: string
+}
+
+export type InterviewEvaluation = {
+  scores?: InterviewEvaluationScore[]
+  totalScore?: number | null
+  recommendation?: string
+  overallComment?: string
+  interviewDate?: string
+  locked?: boolean
+  savedAt?: string
+}
+
 export type MatchReport = {
   id: number
   jobId: number
@@ -90,6 +107,8 @@ export type MatchReport = {
   totalScore?: number
   summary?: string
   status: string
+  invited?: boolean
+  invitedAt?: string
   detail?: {
     gateChecks?: GateCheck[]
     dimensions?: DimensionScore[]
@@ -99,6 +118,7 @@ export type MatchReport = {
     questions?: InterviewQuestion[]
     closingTips?: string[]
   }
+  interviewEvaluation?: InterviewEvaluation
 }
 
 export async function fetchJobs() {
@@ -138,6 +158,12 @@ export async function fetchMatches(jobId: number) {
   return data
 }
 
+/** 批量发送面试邀约，返回更新后的匹配列表 */
+export async function inviteToInterview(jobId: number, candidateIds: number[]) {
+  const { data } = await api.post<MatchReport[]>(`/jobs/${jobId}/invites`, { candidateIds })
+  return data
+}
+
 export async function fetchCandidate(id: number) {
   const { data } = await api.get<Candidate>(`/candidates/${id}`)
   return data
@@ -151,6 +177,21 @@ export async function revealCandidate(id: number) {
 
 export async function fetchInterviewPack(candidateId: number) {
   const { data } = await api.get<MatchReport>(`/candidates/${candidateId}/interview-pack`)
+  return data
+}
+
+/** 保存面试官评价并锁定 */
+export async function saveInterviewEvaluation(
+  candidateId: number,
+  payload: {
+    scores: InterviewEvaluationScore[]
+    totalScore?: number | null
+    recommendation?: string
+    overallComment?: string
+    interviewDate?: string
+  },
+) {
+  const { data } = await api.post<MatchReport>(`/candidates/${candidateId}/interview-evaluation`, payload)
   return data
 }
 

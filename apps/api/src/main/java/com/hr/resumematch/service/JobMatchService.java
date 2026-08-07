@@ -14,6 +14,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -135,20 +136,40 @@ public class JobMatchService {
             if (candidates.isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "暂无已解析完成的简历，请稍后再试或检查解析状态");
             }
+            // 重新匹配前保留已邀约状态与已保存的面试评价（按 candidateId）
+            Map<Long, Instant> invitedAtByCandidate = new HashMap<>();
+            Map<Long, String> evaluationByCandidate = new HashMap<>();
+            for (MatchReportEntity existing : matchReportRepository.findByJobIdOrderByTotalScoreDesc(jobId)) {
+                if (existing.isInvited()) {
+                    invitedAtByCandidate.put(
+                            existing.getCandidateId(),
+                            Optional.ofNullable(existing.getInvitedAt()).orElse(Instant.now()));
+                }
+                if (existing.getInterviewEvaluationJson() != null && !existing.getInterviewEvaluationJson().isBlank()) {
+                    evaluationByCandidate.put(existing.getCandidateId(), existing.getInterviewEvaluationJson());
+                }
+            }
             matchReportRepository.deleteByJobId(jobId);
             List<Long> ids = new ArrayList<>();
             for (CandidateEntity c : candidates) {
-                MatchReportEntity r = MatchReportEntity.builder()
+                MatchReportEntity.MatchReportEntityBuilder builder = MatchReportEntity.builder()
                         .jobId(jobId)
                         .candidateId(c.getId())
                         .passHardGate(false)
                         .totalScore(0.0)
-                        .status("PENDING")
-                        .build();
-                ids.add(matchReportRepository.save(r).getId());
+                        .status("PENDING");
+                Instant invitedAt = invitedAtByCandidate.get(c.getId());
+                if (invitedAt != null) {
+                    builder.invited(true).invitedAt(invitedAt);
+                }
+                String evaluationJson = evaluationByCandidate.get(c.getId());
+                if (evaluationJson != null) {
+                    builder.interviewEvaluationJson(evaluationJson);
+                }
+                ids.add(matchReportRepository.save(builder.build()).getId());
             }
-            log.info("匹配任务已创建: jobId={}, readyCandidates={}, reportCount={}",
-                    jobId, candidates.size(), ids.size());
+            log.info("匹配任务已创建: jobId={}, readyCandidates={}, reportCount={}, preservedInvites={}, preservedEvaluations={}",
+                    jobId, candidates.size(), ids.size(), invitedAtByCandidate.size(), evaluationByCandidate.size());
             return ids;
         });
         // 并发匹配该岗位下的所有候选人；单个失败不影响整体。
@@ -165,6 +186,87 @@ public class JobMatchService {
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
         return listMatches(jobId);
+    }
+
+    /**
+     * 批量发送面试邀约：仅允许已通过硬性门槛且存在匹配报告的候选人。
+     * 已邀约的候选人视为幂等成功。
+     */
+    @Transactional
+    public List<MatchResponse> inviteCandidates(Long jobId, List<Long> candidateIds) {
+        requireJob(jobId);
+        if (candidateIds == null || candidateIds.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择至少一位候选人");
+        }
+        List<Long> uniqueIds = candidateIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (uniqueIds.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择至少一位候选人");
+        }
+
+        Map<Long, MatchReportEntity> reportMap = matchReportRepository
+                .findByJobIdAndCandidateIdIn(jobId, uniqueIds).stream()
+                .collect(Collectors.toMap(MatchReportEntity::getCandidateId, r -> r, (a, b) -> a));
+
+        List<String> errors = new ArrayList<>();
+        Instant now = Instant.now();
+        int newlyInvited = 0;
+        for (Long candidateId : uniqueIds) {
+            MatchReportEntity report = reportMap.get(candidateId);
+            if (report == null) {
+                errors.add("候选人#" + candidateId + " 尚无匹配报告");
+                continue;
+            }
+            if (!report.isPassHardGate()) {
+                errors.add("候选人#" + candidateId + " 未通过硬性门槛，无法邀约");
+                continue;
+            }
+            if (!report.isInvited()) {
+                report.setInvited(true);
+                report.setInvitedAt(now);
+                matchReportRepository.save(report);
+                newlyInvited++;
+            }
+        }
+        if (!errors.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.join("；", errors));
+        }
+        if (newlyInvited == 0 && uniqueIds.size() > 0) {
+            log.info("面试邀约幂等完成: jobId={}, candidateIds={}, 全部已邀约", jobId, uniqueIds);
+        } else {
+            log.info("面试邀约完成: jobId={}, requested={}, newlyInvited={}", jobId, uniqueIds.size(), newlyInvited);
+        }
+        return listMatches(jobId);
+    }
+
+    /**
+     * 保存面试官评价并锁定，不可再次编辑。
+     */
+    @Transactional
+    public MatchResponse saveInterviewEvaluation(Long candidateId, InterviewEvaluationRequest req) {
+        CandidateEntity c = candidateRepository.findById(candidateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "候选人不存在"));
+        MatchReportEntity report = matchReportRepository.findByJobIdAndCandidateId(c.getJobId(), candidateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "尚未生成匹配报告，请先触发匹配"));
+
+        InterviewEvaluation existing = JsonUtils.fromJson(report.getInterviewEvaluationJson(), InterviewEvaluation.class);
+        if (existing != null && existing.isLocked()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "面试评价已保存并锁定，不可再次编辑");
+        }
+
+        InterviewEvaluation evaluation = new InterviewEvaluation();
+        evaluation.setScores(req.getScores() != null ? req.getScores() : new ArrayList<>());
+        evaluation.setTotalScore(req.getTotalScore());
+        evaluation.setRecommendation(req.getRecommendation());
+        evaluation.setOverallComment(req.getOverallComment());
+        evaluation.setInterviewDate(req.getInterviewDate());
+        evaluation.setLocked(true);
+        evaluation.setSavedAt(format(Instant.now()));
+
+        report.setInterviewEvaluationJson(JsonUtils.toJson(evaluation));
+        matchReportRepository.save(report);
+        log.info("面试评价已保存锁定: candidateId={}, reportId={}, totalScore={}",
+                candidateId, report.getId(), evaluation.getTotalScore());
+        return toMatchResponse(report, c);
     }
 
     @Transactional(readOnly = true)
@@ -255,8 +357,11 @@ public class JobMatchService {
         r.setTotalScore(e.getTotalScore());
         r.setSummary(e.getSummary());
         r.setStatus(e.getStatus());
+        r.setInvited(e.isInvited());
+        r.setInvitedAt(format(e.getInvitedAt()));
         r.setDetail(JsonUtils.fromJson(e.getDetailJson(), MatchDetail.class));
         r.setInterviewPack(JsonUtils.fromJson(e.getInterviewPackJson(), InterviewPack.class));
+        r.setInterviewEvaluation(JsonUtils.fromJson(e.getInterviewEvaluationJson(), InterviewEvaluation.class));
         if (c != null) {
             r.setFileName(c.getFileName());
             CandidateProfile p = JsonUtils.fromJson(c.getProfileJson(), CandidateProfile.class);

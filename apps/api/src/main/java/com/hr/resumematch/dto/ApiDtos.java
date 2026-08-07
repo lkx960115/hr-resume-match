@@ -124,8 +124,46 @@ public final class ApiDtos {
         private Double totalScore;
         private String summary;
         private String status;
+        private boolean invited;
+        private String invitedAt;
         private MatchDetail detail;
         private InterviewPack interviewPack;
+        private InterviewEvaluation interviewEvaluation;
+    }
+
+    @Data
+    public static class InviteRequest {
+        @NotEmpty
+        private List<Long> candidateIds = new ArrayList<>();
+    }
+
+    @Data
+    public static class InterviewEvaluationScore {
+        private String name;
+        private double weight;
+        private Double score;
+        private String comment;
+    }
+
+    @Data
+    public static class InterviewEvaluation {
+        private List<InterviewEvaluationScore> scores = new ArrayList<>();
+        private Double totalScore;
+        /** pass | hold | reject */
+        private String recommendation;
+        private String overallComment;
+        private String interviewDate;
+        private boolean locked;
+        private String savedAt;
+    }
+
+    @Data
+    public static class InterviewEvaluationRequest {
+        private List<InterviewEvaluationScore> scores = new ArrayList<>();
+        private Double totalScore;
+        private String recommendation;
+        private String overallComment;
+        private String interviewDate;
     }
 
     @Data

@@ -215,6 +215,14 @@ public class DemoSeedService {
         ));
 
         configs.add(new JobConfig(
+                buildSeniorFrontendJob(),
+                new String[]{
+                        "resume-senior-fe-01.txt",
+                        "resume-senior-fe-02.txt"
+                }
+        ));
+
+        configs.add(new JobConfig(
                 buildPmJob(),
                 new String[]{
                         "resume-pm-01.txt",
@@ -281,6 +289,31 @@ public class DemoSeedService {
         dims.add(dim("组件与交互实现", "UI 还原、组件设计", 0.20));
         dims.add(dim("项目影响力", "项目规模、量化成果", 0.15));
         dims.add(dim("协作与表达", "沟通、文档、跨团队协作", 0.10));
+        jobReq.setDimensions(dims);
+        return jobReq;
+    }
+
+    private static JobRequest buildSeniorFrontendJob() {
+        JobRequest jobReq = new JobRequest();
+        jobReq.setTitle("高级前端工程师");
+        jobReq.setJdText("""
+                负责核心产品前端架构设计与技术攻关。
+                要求精通 TypeScript、React/Vue 生态，具备微前端、SSR、性能优化等实战经验。
+                能主导前端工程化建设，推动组件库、监控体系、自动化测试落地，具备技术影响力与带教能力。
+                """);
+
+        List<HardRequirement> hard = new ArrayList<>();
+        hard.add(hr("education", "学历", "gte", "本科"));
+        hard.add(hr("years", "工作年限", "gte", "5"));
+        hard.add(hr("skill", "必会技能", "contains", "TypeScript"));
+        jobReq.setHardRequirements(hard);
+
+        List<DimensionWeight> dims = new ArrayList<>();
+        dims.add(dim("前端架构与工程化", "微前端、SSR、构建体系", 0.30));
+        dims.add(dim("框架深度与性能", "React/Vue 原理、性能调优", 0.25));
+        dims.add(dim("质量保障体系", "测试策略、监控、CI/CD", 0.20));
+        dims.add(dim("技术影响力", "组件库、规范制定、技术分享", 0.15));
+        dims.add(dim("团队与协作", "带教、跨团队沟通、项目管理", 0.10));
         jobReq.setDimensions(dims);
         return jobReq;
     }

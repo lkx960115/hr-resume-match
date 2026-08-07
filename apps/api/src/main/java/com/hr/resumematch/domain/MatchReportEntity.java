@@ -46,6 +46,18 @@ public class MatchReportEntity {
 
     private String errorMessage;
 
+    /** 是否已发送面试邀约 */
+    @Column(nullable = false)
+    @org.hibernate.annotations.ColumnDefault("false")
+    @Builder.Default
+    private boolean invited = false;
+
+    private Instant invitedAt;
+
+    /** JSON: 面试官评价（保存后锁定） */
+    @Column(columnDefinition = "CLOB")
+    private String interviewEvaluationJson;
+
     @CreationTimestamp
     private Instant createdAt;
 
